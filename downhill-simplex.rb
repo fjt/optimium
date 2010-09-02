@@ -1,3 +1,33 @@
+class Array
+  def mplus (arg)
+    if self[0].is_a? Numeric
+      self.map_with_index{|v, i| v + arg[i]}
+    else
+      self.map_with_index{|v, i|v.mplus(arg[i])}
+    end
+  end    
+
+  def *(arg)
+    if arg.is_a? Numeric
+      self.map{|v| v * arg}
+    else
+      if arg[0].is_a? Numeric
+	if self[0].is_a? Numeric
+	  self.inject_with_index(0){|ret, v, i|ret += v * arg[i]}
+	else
+	  self.map{|row|row * arg}
+#	  (NMatrix.to_na(self) * NVector.to_na(arg)).to_a
+	end
+      else
+	self.map{|v|arg.transpose.map{|u| v * u}}
+#	(NMatrix.to_na(self) * NMatrix.to_na(arg)).to_a
+      end
+    end
+  end
+end
+
+
+
 class Proc
   def dhsmplx(simplex, hist=[])
       hist.push(simplex)
