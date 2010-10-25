@@ -8,13 +8,15 @@ Currently optimium only uses Nelder-Mead method (aka downhill simplex
 method) for its optimization algorithm.
 
 Usage: make a Proc instance to compute the function of n independent
-arguments (parameters). Then build an n-dimensional simplex and
-call method "dhsmplx" with the argument of the simplex.
-The return value is the array of simplex representing the history
-took to optimize the function with the first element the starting
-point and the last one as the optimized parameters.
+arguments (parameters). Then build an n-dimensional simplex as a set of
+initial values and call method "dhsmplx" with the argument of the simplex.
+The return value is the array of simplice representing the history
+took to optimize the function with the first simplex as the starting
+point and the last one as the optimized result.
 The history is kept so as to make you can chek the process of optimization
 via gnuplot or sort of such tools.
+
+-- Here's a sample session --
 
 include Math
 proc=lambda{|a, b|sin(a)*cos(b)}
@@ -26,6 +28,8 @@ The optimized function value can be obtained by
 proc.call(*optimium[-1][0]) which will be -0.999665 or something,
 meaning optimized to -1. Note the "*" in front of argument for parameter
 expansion.
+
+--
 
 For more details, please see
 http://fjt.webmasters.gr.jp/linux/yesterday/2009.09.19.html
