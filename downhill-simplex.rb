@@ -37,7 +37,7 @@ class Proc
     else
       #      ref = simplex.map{|v|[self.call(*v), v]}.sort
       ref = simplex.map{|v|
-	[ value = lt[v] or lt[v] = self.call(*v), v]
+	[ (lt[v] or lt[v] = self.call(*v)), v]
       }.sort
       best = ref[0]; worse = ref[-2]; worst = ref[-1]
       nsimplex = ref[0..-2].map{|e|e[1]} ## remove worst
