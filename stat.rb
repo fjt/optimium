@@ -1,5 +1,12 @@
 module RandomVariate
 
+  class RandomVariateGenerator
+    def new(sample)
+      deriv=sample.each_cons(2).map{|e|e.last - e.first}
+      dderiv=deriv.each_cons(2).map{|e|e.last - e.first}
+    end
+  end
+
   def gamma(opt={})
     scale = (opt[:scale] or 1.0)
     shape = (opt[:shape] or 2.0)
@@ -49,7 +56,6 @@ module RandomVariate
 	     end
 	     return ( x * beta)
 	   end
-	   
 	 end
     end
   end
@@ -60,11 +66,11 @@ module RandomVariate
   end
 
   def power(opt={})
-    ## gives variates obeying the power of cumulative.
-    ## power of density function should be less (or rather say more?) by 1.0
+    ## gives variates obeying given power law distribution.
+    ## the lower bound and the power can be given by option, which are set to 1.0 and 2.0 by default.
     nom = (opt[:nom] or 1.0)
     power = (opt[:power] or 2.0)
-    cdfinvert{|x|nom/(1-x)**(1.0/power)}
+    cdfinvert{|x|nom/(1-x)**(1.0/(power-1))}
   end
 
   def clgauss(mean=0, var=1.0)
@@ -157,7 +163,71 @@ module RandomVariate
   end
 end ## end module Random
 
+class Numeric
+  def ub(b)
+    if self > b
+      b
+    else
+      self
+    end
+  end
+
+  def lb(b)
+    if self < b
+      b
+    else
+      self
+    end
+  end
+end
+
 class Array
+
+  def abs
+    Math::sqrt(self.inject(0){|r, v|r+= v*v})
+  end
+
+  def eig_pow
+    eps=0.0001
+    l=0.0; ol=1.0
+    if self[0].class == self.class
+##      x=[1];(self[0].length - 1).times{x.push(0)}
+      x=self.map{|r|r.sum}
+      while (l - ol).abs/ol > eps
+        ol=l
+        y= self.prod(x)
+        l=y.abs / x.abs
+        x=y/l
+      end
+      xa=x.abs
+      [x.map{|v|v/xa}, l]
+    else
+      x=self.map.with_index{|r, i|r.length}.to_cv
+      while (l - ol).abs/ol > eps
+        ol=l
+        y= self.cmprod(x)
+        xabs, yabs = [x, y].map{|v|v.to_a.transpose[1].abs}
+        l=yabs / xabs
+        x= y.cmap{|k, v| v/l}
+      end
+      xabs=0; x.each{|k, v|xabs+=v}
+      [x.cmap{|k, v|v/xabs}, l]
+    end
+  end
+
+  def prod(arg, &block)
+    if arg[0].is_a? Numeric
+      if self[0].is_a? Numeric
+#        self.inject_with_index(0){|ret, v, i|ret+= block.call(v, arg[i])}
+        [self, arg].transpose.inject(0){|r, e|r+e.first*e.last}
+      else
+        self.map{|r| r.prod(arg, &block)}
+      end
+    else
+      self.map{|v|arg.map{|vv| v.prod(vv, &block)}}
+    end
+  end
+
 
 
   def sum
@@ -172,6 +242,19 @@ class Array
     self.sum/self.length.to_f
   end
 
+  def movave(len)
+    len=len.to_f
+    sm=self[0..(len-1)].sum
+    ret=[sm/len]
+    (0..(self.length - len -1)).each{|i|
+      sm=sm-self[i]+self[i+len]
+      ret.push(sm/len)}
+    ret
+  end
+
+  def rpick
+    self[rand(self.length)]
+  end
 
   def tocopula
     en=self.length.to_f
@@ -266,7 +349,8 @@ class Array
   end
 
   def mle_power(xmin = self.min, error = false)
-    ## calculate cumulative distribution power, not density.
+    ## calculate cumulative distribution power, not density like my random variate function.
+    ## Hill's estimate
     xmin= xmin.to_f
     d= self.map{|e|e if e >= xmin}.compact
     l= d.length
@@ -285,9 +369,19 @@ class Array
     (self.length - 1).to_f
   end
 
+  def value2rank(sorted=nil)
+    self.map{|v|
+      if v.is_a? Enumerable
+        v.value2rank(sorted)
+      else
+        sorted = self.sort unless sorted
+        sorted.index(v)
+      end}
+  end
+
   def v2rank
     p=nil; pl=0; ret=Hash.new
-    self.sort.map_with_index{|v, i|
+    self.sort.map.with_index{|v, i|
       if p
         if p < v
           p=v; pl=i; ret[v]=i
@@ -318,7 +412,7 @@ class Array
 	else
 	  head.push(e)
 	  t_h_revs+=tail.length
-	end      
+	end
       }
       t_h_revs + head.inject(0){|r, e|if e == pivot; r+0.5;else;r+1;end} + head.revpairs_length + tail.revpairs_length
     else
@@ -326,11 +420,87 @@ class Array
     end
   end
 
+  def concordant_pairs
+    if self.length > 1
+      pivot=self[0]
+      head, tail = [], []
+      t_h_cons=0
+      self[1..-1].each{|e|
+      if e > pivot
+        tail.push(e)
+        t_h_cons+=head.length
+      else 
+        head.push(e)
+      end}
+      t_h_cons + tail.length + head.concordant_pairs + tail.concordant_pairs
+    else
+      0
+    end
+  end
+
+  def discordant_pairs
+    if self.length > 1
+      pivot=self[0]
+      head, tail = [], []
+      t_h_revs=0
+      self[1..-1].each{|e|
+      if e < pivot
+        head.push(e)
+        t_h_revs+=tail.length
+      else
+        tail.push(e)
+      end
+      }
+      t_h_revs + head.length + head.discordant_pairs + tail.discordant_pairs
+    else
+      0
+    end
+  end
+
+  def tie_pairs
+    if self.length > 1
+      piv=self.first
+      tp=0
+      hd, tl = [], []
+      self[1..-1].each{|e|
+        if e > piv
+          tl.push(e)
+        else if e < piv
+               hd.push(e)
+             else
+               tp+=1
+             end
+        end
+      }
+      tp + tl.tie_pairs + hd.tie_pairs
+    else
+      0
+    end
+  end
+
+  def kendall_tau
+    nomin = self.transpose.map{|e|el=e.length; (el-1)*el/2 - e.tie_pairs}.inject(1){|r,e|r*e}
+    ary=self.sort.transpose.last
+    (ary.concordant_pairs - ary.discordant_pairs) / sqrt(nomin)
+  end
+
   def kendall_corl
     pairs= (en=self.length)*(en-1)/2.0
     (pairs - 2*self.sort.transpose[1].revpairs_length)/pairs
   end
 
+  def jaccard(other)
+    (self & other).uniq.length.to_f/(self + other).uniq.length
+  end
 
+  def mode
+    self.inject({self.first => 1}){|h,e|if h[e]; h[e]+=1; else; h[e]=1;end;h}.to_a.sort{|a,b|a.last <=> b.last}.last
+  end
+
+  def entropy_continuous(base=2.0)
+    d=self.sort.each_cons(2).map{|e|1/(e.last - e.first) if e.last> e.first}.compact
+    s=d.sum.to_f
+    d.inject(0){|h, v|h+=(v/s)*log(s/v, base)}
+  end
 
 end
