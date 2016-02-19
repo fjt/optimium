@@ -183,6 +183,25 @@ end
 
 class Array
 
+  def rmap(&bl)
+    self.map{|e|
+      if e.class == self.class
+	e.rmap(&bl)
+      else
+        bl.call(e)
+      end}
+  end
+
+  def filter(&bl)
+     self.inject([]){|r, e| if e=bl.call(e)
+                              r.push(e)
+                            else
+                              r
+                            end}
+#    self.map(&bl).map{|e|nil if e == false}.compact
+  end
+
+
   def abs
     Math::sqrt(self.inject(0){|r, v|r+= v*v})
   end
