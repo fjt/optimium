@@ -183,6 +183,38 @@ end
 
 class Array
 
+  def ent(base=2)
+    len=self.length.to_f
+    - self.inject({}){|h, e|if h[e]; h[e]+=1; else; h[e]=1; end; h}.to_a.transpose.last.map{|v|(p=v/len)*Math::log(p,base)}.sum
+  end
+
+  def distdist(arg)
+    if arg.length > self.length
+      arg=arg.sample(self.length).sort
+      base=self.sort
+    else
+      arg=arg.sort
+      base=self.sample(arg.length).sort
+    end
+    len=base.length.to_f
+    base.each_with_index.inject(0){|r, e|
+      i=e.last
+      val=e.first
+      r+(i - arg.filter{|v|v< val}.length).abs/len}/len
+  end
+
+  def ksdist(arg)
+    if arg.length > self.length
+      arg=arg.sample(self.length).sort
+      base=self.sort
+    else
+      arg=arg.sort
+      base=self.sample(arg.length).sort
+    end
+    base.map.with_index{|val, i|
+      (i - arg.filter{|v|v< val}.length).abs}.max/base.length.to_f
+  end
+
   def rmap(&bl)
     self.map{|e|
       if e.class == self.class
