@@ -5,7 +5,24 @@ class Array
     else
       self.map.with_index{|v, i|v.mplus(arg[i])}
     end
-  end    
+  end
+
+  def abs
+    if self.first.class == self.class
+      sqrt(self.map{|e|
+             e.abs**2}.sum)
+    else
+      sqrt(self.map{|v|v**2}.sum)
+    end
+  end
+
+  def sum
+    self.inject(0){|r,v|v+=r}
+  end
+
+  def ave
+    self.sum.to_f/self.length
+  end
 
   def *(arg)
     if arg.is_a? Numeric
