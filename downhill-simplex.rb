@@ -1,9 +1,9 @@
 class Array
   def mplus (arg)
     if self[0].is_a? Numeric
-      self.map_with_index{|v, i| v + arg[i]}
+      self.map.with_index{|v, i| v + arg[i]}
     else
-      self.map_with_index{|v, i|v.mplus(arg[i])}
+      self.map.with_index{|v, i|v.mplus(arg[i])}
     end
   end    
 
