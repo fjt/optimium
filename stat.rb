@@ -183,6 +183,10 @@ end
 
 class Array
 
+  def ment(base=2)
+    self.ent(base) / Math::log(self.length, base)
+  end
+
   def ent(base=2)
     len=self.length.to_f
     - self.inject({}){|h, e|if h[e]; h[e]+=1; else; h[e]=1; end; h}.to_a.transpose.last.map{|v|(p=v/len)*Math::log(p,base)}.sum
