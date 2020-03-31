@@ -1,9 +1,12 @@
 module RandomVariate
 
-  class RandomVariateGenerator
-    def new(sample)
-      deriv=sample.each_cons(2).map{|e|e.last - e.first}
-      dderiv=deriv.each_cons(2).map{|e|e.last - e.first}
+  class EmpiricalRVG
+    def initialize(sample)
+      @src = sample.sort
+    end
+
+    def var
+      @src[@src.pickrange(rand).last+rand(2)]
     end
   end
 
@@ -60,16 +63,22 @@ module RandomVariate
     end
   end
 
-
   def cdfinvert(&cdfinv)
     cdfinv.call(rand(0))
   end
 
-  def power(opt={})
+  def cauchy(opt={})
+    shift = (opt[:shift] or 0.0)
+    scale = (opt[:scale] or 1.0)
+    cdfinvert{|x|tan(Math::PI*(x-0.5))/scale + shift}
+  end
+
+
+  def power(nom: 1.0, power: 2.0)
     ## gives variates obeying given power law distribution.
     ## the lower bound and the power can be given by option, which are set to 1.0 and 2.0 by default.
-    nom = (opt[:nom] or 1.0)
-    power = (opt[:power] or 2.0)
+#    nom = (opt[:nom] or 1.0)
+#    power = (opt[:power] or 2.0)
     cdfinvert{|x|nom/(1-x)**(1.0/(power-1))}
   end
 
@@ -182,13 +191,94 @@ class Numeric
 end
 
 class Array
-
-  def ment(base=2)
-    self.ent(base) / Math::log(self.length, base)
+  def thickness(count = 0)
+    print "data=", self.to_s, " count=", count if $debug
+    if self.length == 0
+      return count
+    end
+    ab = []
+    eq = 0
+    bl = []
+    pivot = self.sample  ; print " pivot=", pivot, "\n" if $debug
+    self.each{|e|
+      if e > pivot
+        ab.push(e)
+      else if e < pivot
+             bl.push(e)
+           else
+             eq+=1
+           end
+      end
+    }
+    if (ab.length + count) == pivot or (ab.length + count) + 1 == pivot
+      pivot
+    else if (ab.length + count) > pivot
+           ab.thickness(count)
+         else 
+           bl.thickness(ab.length + eq + count)
+         end
+    end
   end
 
-  def ent(base=2)
-    len=self.length.to_f
+  def qsort
+    pvt=self.first
+    if self.length <= 1
+      return self
+    end
+    up=[]; dn=[]; eq=[]
+    self.each{|e| if e==pvt
+                    eq.push(e)
+                  else if e > pvt
+                           up.push(e)
+                         else
+                           dn.push(e)
+                         end
+                  end}
+    up.qsort + eq + dn.qsort
+  end
+
+  def thickness_t
+#    k=(self.sort.reverse.v2rank.to_a.filter{|e|e if e.first < e.last}.first or []).first
+#    self.filter{|v|v > k}.length if k
+    i=1; self.qsort.each{|v| break if v < i ; i+=1}; i
+  end
+
+  def analog_sample(tmpl:template, scale:1.0, &pick)
+    tmpl.each_cons(2).map{|h, t|self.filter{|v|v if pick.call(v) >= pick.call(h)*scale and pick.call(t)*scale > v}.sample}.compact
+  end
+
+  def e2i
+    self.map.with_index{|e, i|[e, i]}.inject({}){|h, e|k, v=e; if h[k]; h[k].push(v); else; h[k]=[v]; end; h}
+  end
+
+  def count
+    self.inject({}){|h, e|if h[e]; h[e]+=1; else; h[e]=1; end; h}.to_a
+  end
+
+  def survive(prob:0.5, fix:nil)
+    if fix
+      self.map{|e| e if rand < prob}
+    else
+      self.filter{|e| e if rand < prob}
+    end
+  end
+
+  def gent(base=2) ## normalized group entropy
+    nom, denom = self.map{|e|[e.ent(base), log(e.length, base)]}.transpose.map{|e|e.sum}
+    if denom > 0
+      nom/denom
+    else
+      nom
+    end
+  end
+
+  def ment ## normalized single sequence entropy
+    (len=self.length) > 1 or len = Math::E
+    self.ent(Math::E) / Math::log(len, Math::E)
+  end
+
+  def ent(base=2) ## raw entropy based on original def of Shannon
+    (len=self.length.to_f) > 0 or raise
     - self.inject({}){|h, e|if h[e]; h[e]+=1; else; h[e]=1; end; h}.to_a.transpose.last.map{|v|(p=v/len)*Math::log(p,base)}.sum
   end
 
@@ -297,6 +387,17 @@ class Array
     self.sum/self.length.to_f
   end
 
+  def movave2(width, offset=(width+1)/2)
+    termi = self.length - 1
+    (0..termi).map{|i|
+      head = i - offset
+      tail = i + offset
+      head = 0 if head < 0
+      tail = termi if  tail > termi
+      self[head..tail].ave
+    }
+  end
+
   def movave(len)
     len=len.to_f
     sm=self[0..(len-1)].sum
@@ -319,15 +420,20 @@ class Array
       row.map{|v|im[v]}}.transpose
   end
 
-  def leastsq(isb=true)
+  def leastsq(isb:true, lambda:false)
     self.depth == 2 and self[0].length == 2 or raise "apply to an array of pairs."
     len=self.length
     mps=self.map{|e|e.mult}.sum
     xs,ys=self.transpose.map{|e|e.sum}
     xss=self.transpose[0].inject(0){|r,e|r+=(e**2)}
     if isb
-      [(xs*ys-len*mps)/(xs**2-len*xss).to_f,
-	(mps*xs - xss*ys)/(xs**2 - len*xss).to_f] ## returns [slope, shift]
+      slope, shift = [(xs*ys-len*mps)/(xs**2-len*xss).to_f,
+                      (mps*xs - xss*ys)/(xs**2 - len*xss).to_f] ## returns [slope, shift]
+      if lambda
+        lambda{|x|slope*x + shift}
+      else
+        [slope, shift]
+      end
     else
       mps.to_f/xss
     end
@@ -435,10 +541,11 @@ class Array
   end
 
   def v2rank
+    # sort in one way or another, then call this.
     p=nil; pl=0; ret=Hash.new
-    self.sort.map.with_index{|v, i|
+    self.map.with_index{|v, i|
       if p
-        if p < v
+        if p != v
           p=v; pl=i; ret[v]=i
         else
           ret[v]=pl
