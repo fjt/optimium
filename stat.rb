@@ -191,15 +191,15 @@ class Numeric
 end
 
 class Array
-  def thickness(count = 0)
-    print "data=", self.to_s, " count=", count if $debug
+  def hirsch(count = 0)
+    print "data=", self.to_s, "\n" if $debug
     if self.length == 0
       return count
     end
     ab = []
     eq = 0
     bl = []
-    pivot = self.sample  ; print " pivot=", pivot, "\n" if $debug
+    pivot = self.sample  ; print "pivot=", pivot if $debug
     self.each{|e|
       if e > pivot
         ab.push(e)
@@ -210,12 +210,16 @@ class Array
            end
       end
     }
+    print " upper=", ab.to_s, " lower=", bl.to_s, " equal=", eq if $debug
     if (ab.length + count) == pivot or (ab.length + count) + 1 == pivot
+      print "\n", pivot, " BINGO exit\n" if $debug
       pivot
     else if (ab.length + count) > pivot
-           ab.thickness(count)
+           print " count=", count ," go upper\n" if $debug
+           ab.hirsch(count)
          else 
-           bl.thickness(ab.length + eq + count)
+           print " count=", (ab.length + eq + count), " go lower\n" if $debug
+           bl.hirsch(ab.length + eq + count)
          end
     end
   end
@@ -237,7 +241,7 @@ class Array
     up.qsort + eq + dn.qsort
   end
 
-  def thickness_t
+  def hirsch_t
 #    k=(self.sort.reverse.v2rank.to_a.filter{|e|e if e.first < e.last}.first or []).first
 #    self.filter{|v|v > k}.length if k
     i=1; self.qsort.each{|v| break if v < i ; i+=1}; i
