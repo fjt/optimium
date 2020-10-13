@@ -191,6 +191,7 @@ class Numeric
 end
 
 class Array
+
   def hirsch(count = 0)
     print "data=", self.to_s, "\n" if $debug
     if self.length == 0
@@ -255,8 +256,8 @@ class Array
     self.map.with_index{|e, i|[e, i]}.inject({}){|h, e|k, v=e; if h[k]; h[k].push(v); else; h[k]=[v]; end; h}
   end
 
-  def count
-    self.inject({}){|h, e|if h[e]; h[e]+=1; else; h[e]=1; end; h}.to_a
+  def count_el
+    self.inject({}){|h, e|h[e]=((h[e] or 0) + 1); h}.to_a
   end
 
   def survive(prob:0.5, fix:nil)
