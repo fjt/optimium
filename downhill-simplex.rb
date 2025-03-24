@@ -1,28 +1,11 @@
 class Array
   def mplus (arg)
     if self[0].is_a? Numeric
-      self.map.with_index{|v, i| v + arg[i]}
+      self.map_with_index{|v, i| v + arg[i]}
     else
-      self.map.with_index{|v, i|v.mplus(arg[i])}
+      self.map_with_index{|v, i|v.mplus(arg[i])}
     end
-  end
-
-  def abs
-    if self.first.class == self.class
-      sqrt(self.map{|e|
-             e.abs**2}.sum)
-    else
-      sqrt(self.map{|v|v**2}.sum)
-    end
-  end
-
-  def sum
-    self.inject(0){|r,v|v+=r}
-  end
-
-  def ave
-    self.sum.to_f/self.length
-  end
+  end    
 
   def dot(arg)
     if arg.is_a? Numeric
@@ -47,24 +30,25 @@ class Array
   end
 end
 
+
+
 class Proc
-  def dhsmplx(simplex, count=1000, hist=[], lt={})
+  def dhsmplx(simplex, count=1000, hist=[], lt={}, &blk)
+    simplex = blk.call(simplex) if blk
     hist.push(simplex)
     ss=simplex[0]; size= simplex.map{|v|ss.mplus(v.dot(-1)).abs}.inject(0){|r, v|r+=v}
     count-=1
     if count == 0
       hist
     else
-      ref = simplex.map{|v|
-	[ (lt[v] or lt[v] = self.call(*v)), v]
-      }.sort
+      ref = simplex.map{|v| [ (lt[v] or lt[v] = self.call(*v)), v]}.sort
       best = ref[0]; worse = ref[-2]; worst = ref[-1]
       nsimplex = ref[0..-2].map{|e|e[1]} ## remove worst
       cp = nsimplex.transpose.map{|ax|ax.ave} ## centroid
       cr = (cp.dot(2.0)).mplus(worst[1].dot(-1)) ## reflection of the worst
       rv = (lt[cr] = self.call(*cr))
       if best[0] <= rv and rv <= worse[0] ## case intermediate
-        dhsmplx(nsimplex.push(cr), count, hist, lt)
+        dhsmplx(nsimplex.push(cr), count, hist, lt, &blk)
       else
         if rv < best[0] ## best
           ep = (cr.dot(2.0)).mplus(cp.dot(-1)) ## expand
@@ -73,14 +57,14 @@ class Proc
           else
             nsimplex.unshift(cr)
           end
-          dhsmplx(nsimplex, count, hist, lt)
+          dhsmplx(nsimplex, count, hist, lt, &blk)
         else ## case worst
-            ctrp = (cp.mplus(worst[1])).dot(0.5) ## contract point
+          ctrp = (cp.mplus(worst[1])).dot(0.5) ## contract point
           if (lt[ctrp] = self.call(*ctrp)) <= worst[0]
-            dhsmplx(nsimplex.push(ctrp), count, hist, lt)
+            dhsmplx(nsimplex.push(ctrp), count, hist, lt, &blk)
           else
             nsimplex = [best[1]]+(ref[1..-1].map{|e|e[1]}.map{|v|(best[1].mplus(v)).dot(0.5)})
-            dhsmplx(nsimplex, count, hist, lt)
+            dhsmplx(nsimplex, count, hist, lt, &blk)
           end
         end
       end

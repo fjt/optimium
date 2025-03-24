@@ -29,6 +29,15 @@ proc.call(*optimium[-1][0]) which will be -0.999665 or something,
 meaning optimized to -1. Note the "*" in front of argument for parameter
 expansion.
 
+2025/03/24 update
+
+can have a constraint, which is given as a block like this
+
+some.dhsmplx(simplex){|s|s.map{|v|if v > 1; 1; else if 0 > v; 0; else; v; end;end}}
+
+this forces everything within unit (possibly hyper) cube.
+
+
 --
 
 For more details, please see
